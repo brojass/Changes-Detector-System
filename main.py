@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 
 STATE_START = 0
 STATE_ROOT = 5
@@ -7,6 +8,40 @@ STATE_FILES = 15
 PATTERN_HOST = r'\[\s*host'
 PATTERN_ROOT = r'\[\s*root_folder'
 PATTERN_FOLDER = r'\[\s*folder'
+REMOTE_PATH = '/home/brojas/common/gea'
+LOT_FILES = ['**/*.channels', '**/*.config']
+
+
+def expand(initial_list, last_list):
+    """
+    :param initial_list:
+    :type initial_list: list
+    :param last_list:
+    :type last_list: list
+    :return:
+    :rtype:
+    """
+    for file1 in initial_list:
+        for file2 in last_list:
+            val = file1.find(r'$/')
+            print(val)
+
+
+def add_lot_files_list():
+    """
+
+    :param initial_list:
+    :type initial_list: str
+    :return:
+    :rtype: list
+    """
+    lot_files_list = []
+    posix_path = ''
+    for line in LOT_FILES:
+        posix_path = sorted(Path(REMOTE_PATH).glob(line))
+        for posix_path_line in posix_path:
+            lot_files_list.append(posix_path_line)
+    return lot_files_list
 
 
 def append_delimiter(directory):
@@ -54,6 +89,7 @@ def red_configuration(file_name):
     root_folder = ''
     folder = ''
     output_list = []
+    second_list = []
     try:
         f = open(file_name, 'r')
     except IOError:
@@ -110,8 +146,9 @@ def red_configuration(file_name):
                     return False
             else:
                 output_list.append(root_folder + folder + line.strip())
-                print(line.strip())
-    print(output_list)
+    second_list = add_lot_files_list()
+    expand(output_list, second_list)
+    # print(sorted(Path(REMOTE_PATH).glob(LOT_FILES[1])))
     return True
 
 
