@@ -18,16 +18,14 @@ def expand(full_file_name):
     :return:
     :rtype: list
     """
-    val = 0
-    path = ''
-    pattern = ''
-    posix_path = ''
+    # val = 0
+    # path = ''
+    # pattern = ''
+    # posix_path = ''
     val = full_file_name.rfind('/')
     path = full_file_name[0:val]
-    print(path)
     pattern = full_file_name[val + 1:]
-    print(pattern)
-    posix_path = sorted(Path(path).glob(pattern))
+    posix_path = Path(path).glob(pattern)
     return posix_path
 
 
@@ -71,15 +69,14 @@ def read_configuration(file_name):
     :return:
     :rtype:
     """
-    host = ''
     root_folder = ''
     folder = ''
-    output_list = []
-    try:
-        f = open(file_name, 'r')
-    except IOError:
-        print('Error')
-        return False
+    # output_list = []
+    # try:
+    f = open(file_name, 'r')
+    # except IOError:
+    #     print('Error')
+    #     return False
     state = STATE_START
     for line in f:
         line = line.strip()
@@ -93,8 +90,7 @@ def read_configuration(file_name):
                 if host:
                     state = STATE_ROOT
                 else:
-                    print('Error, host not found')
-                    return False
+                    raise ValueError('host definition not found')
 
         elif state == STATE_ROOT:
             if re.search(PATTERN_ROOT, line):
@@ -103,8 +99,7 @@ def read_configuration(file_name):
                     root_folder = append_delimiter(root_folder)
                     state = STATE_FOLDER
                 else:
-                    print('Error, folder not found')
-                    return False
+                    raise ValueError('root folder definition not found')
 
         elif state == STATE_FOLDER:
             if re.search(PATTERN_FOLDER, line):
@@ -113,34 +108,53 @@ def read_configuration(file_name):
                     folder = append_delimiter(folder)
                     state = STATE_FILES
                 else:
-                    print('Error, folder not found')
-                    return False
+                    raise ValueError('folder not defined')
 
         elif state == STATE_FILES:
             if re.search(PATTERN_HOST, line) or re.search(PATTERN_ROOT, line):
-                print('Error, pattern already defined')
-                return False
+                raise ValueError('duplicate host or root folder definition')
             if re.search(PATTERN_FOLDER, line):
                 folder = return_key(line)
                 if folder:
                     folder = append_delimiter(folder)
                     state = STATE_FILES
                 else:
-                    print('Error, folder not found')
-                    return False
+                    raise ValueError('folder not defined')
             else:
-                output_list.append(root_folder + folder + line.strip())
+                file_list.append(root_folder + folder + line.strip())
 
-    complete_list = []
-    for element in output_list:
-        for file_name in expand(element):
-            print(file_name)
-            complete_list.append(file_name)
-    print(complete_list)
-    return True
+    return file_list
+
+
+def build_expand_list(file_name_list):
+    """
+
+    :param file_name_list:
+    :type file_name_list:
+    :return:
+    :rtype:
+    """
+    output_list = []
+    for file_name in file_name_list:
+        for expanded_file_name in expand(file_name):
+            output_list.append(expanded_file_name)
+    return sorted(output_list)
+
+
+def print_list(input_list):
+    for element in input_list:
+        print(element)
 
 
 if __name__ == '__main__':
-    # read_configuration('gea.config')
-    print(expand('/home/brojas/common/gea/pages/instruments/*.channels'))
-    print(expand('/home/brojas/common/gea/sysMon/C/*.config'))
+    file_list = []
+    try:
+        file_list = read_configuration('gea.config')
+    except FileNotFoundError as e:
+        print(e)
+        exit(0)
+    except ValueError as e:
+        print(e)
+        exit(0)
+    expanded_file_list = build_expand_list(file_list)
+    print_list(expanded_file_list)
