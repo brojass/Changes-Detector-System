@@ -8,40 +8,27 @@ STATE_FILES = 15
 PATTERN_HOST = r'\[\s*host'
 PATTERN_ROOT = r'\[\s*root_folder'
 PATTERN_FOLDER = r'\[\s*folder'
-REMOTE_PATH = '/home/brojas/common/gea'
-LOT_FILES = ['**/*.channels', '**/*.config']
 
 
-def expand(initial_list, last_list):
-    """
-    :param initial_list:
-    :type initial_list: list
-    :param last_list:
-    :type last_list: list
-    :return:
-    :rtype:
-    """
-    for file1 in initial_list:
-        for file2 in last_list:
-            val = file1.find(r'$/')
-            print(val)
-
-
-def add_lot_files_list():
+def expand(full_file_name):
     """
 
-    :param initial_list:
-    :type initial_list: str
+    :param full_file_name:
+    :type full_file_name: str
     :return:
     :rtype: list
     """
-    lot_files_list = []
+    val = 0
+    path = ''
+    pattern = ''
     posix_path = ''
-    for line in LOT_FILES:
-        posix_path = sorted(Path(REMOTE_PATH).glob(line))
-        for posix_path_line in posix_path:
-            lot_files_list.append(posix_path_line)
-    return lot_files_list
+    val = full_file_name.rfind('/')
+    path = full_file_name[0:val]
+    print(path)
+    pattern = full_file_name[val + 1:]
+    print(pattern)
+    posix_path = sorted(Path(path).glob(pattern))
+    return posix_path
 
 
 def append_delimiter(directory):
@@ -70,14 +57,13 @@ def return_key(line):
     aux = line.replace('=', ' ').replace('[', ' ').replace(']', ' ').split()
     if len(aux) == 2:
         output_string = aux[1]
-        print(output_string)
         return output_string
     else:
         print("Error, key not found")
         return False
 
 
-def red_configuration(file_name):
+def read_configuration(file_name):
     """
 
     :param file_name:
@@ -89,7 +75,6 @@ def red_configuration(file_name):
     root_folder = ''
     folder = ''
     output_list = []
-    second_list = []
     try:
         f = open(file_name, 'r')
     except IOError:
@@ -102,7 +87,6 @@ def red_configuration(file_name):
             continue
         if re.search(r'^#', line):
             continue
-        print(line)
         if state == STATE_START:
             if re.search(PATTERN_HOST, line):
                 host = return_key(line)
@@ -146,11 +130,17 @@ def red_configuration(file_name):
                     return False
             else:
                 output_list.append(root_folder + folder + line.strip())
-    second_list = add_lot_files_list()
-    expand(output_list, second_list)
-    # print(sorted(Path(REMOTE_PATH).glob(LOT_FILES[1])))
+
+    complete_list = []
+    for element in output_list:
+        for file_name in expand(element):
+            print(file_name)
+            complete_list.append(file_name)
+    print(complete_list)
     return True
 
 
 if __name__ == '__main__':
-    red_configuration('gea.config')
+    # read_configuration('gea.config')
+    print(expand('/home/brojas/common/gea/pages/instruments/*.channels'))
+    print(expand('/home/brojas/common/gea/sysMon/C/*.config'))
