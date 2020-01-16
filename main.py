@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+import hashlib
 
 STATE_START = 0
 STATE_ROOT = 5
@@ -142,8 +143,32 @@ def build_expand_list(file_name_list):
 
 
 def print_list(input_list):
+    """
+
+    :param input_list:
+    :type input_list: list
+    :return:
+    :rtype:
+    """
     for element in input_list:
         print(element)
+
+
+def transform_hash_md5(input_file_list):
+    """
+
+    :param input_file_list:
+    :type input_file_list: list
+    :return:
+    :rtype:
+    """
+    for element in input_file_list:
+        print(element)
+        hash_md5 = hashlib.md5()
+        with open(element, 'rb') as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_md5.update(chunk)
+        print(hash_md5.hexdigest())
 
 
 if __name__ == '__main__':
@@ -157,4 +182,8 @@ if __name__ == '__main__':
         print(e)
         exit(0)
     expanded_file_list = build_expand_list(file_list)
-    print_list(expanded_file_list)
+    # print_list(expanded_file_list)
+    transform_hash_md5(expanded_file_list)
+
+    # val = ['/home/brojas/common/gea/sysMon/CP/tcs.config']
+    # transform_hash_md5(val)
