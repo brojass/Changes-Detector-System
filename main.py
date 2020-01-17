@@ -2,6 +2,8 @@ import re
 from pathlib import Path
 import hashlib
 import json
+import smtplib
+from email.message import EmailMessage
 
 STATE_START = 0
 STATE_ROOT = 5
@@ -192,6 +194,26 @@ def write_file(dictionary):
         file.write(json.dumps(dictionary))
 
 
+def send_email(file):
+    """
+
+    :param file:
+    :type file:
+    :return:
+    :rtype:
+    """
+    with open(file) as fp:
+        msg = EmailMessage()
+        msg.set_content(fp.read())
+    msg['Subject'] = f'Changes detected in {file}'
+    msg['From'] = 'brojas@gemini.edu'
+    msg['To'] = 'brojas@gemini.edu'
+
+    s = smtplib.SMTP('localhost')
+    s.send_message(msg)
+    s.quit()
+
+
 if __name__ == '__main__':
     expanded_file_list = []
     file_list = []
@@ -207,4 +229,6 @@ if __name__ == '__main__':
     expanded_file_list = build_expand_list(file_list)
     print_list(expanded_file_list)
     dict_hash = dictionary_hash(expanded_file_list)
-    write_file(dict_hash)
+    print(dict_hash)
+    # write_file(dict_hash)
+    # send_email('file.txt')
