@@ -1,6 +1,7 @@
 import re
 from pathlib import Path
 import hashlib
+import json
 
 STATE_START = 0
 STATE_ROOT = 5
@@ -19,10 +20,6 @@ def expand(full_file_name):
     :return:
     :rtype: list
     """
-    # val = 0
-    # path = ''
-    # pattern = ''
-    # posix_path = ''
     val = full_file_name.rfind('/')
     path = full_file_name[0:val]
     pattern = full_file_name[val + 1:]
@@ -68,7 +65,7 @@ def read_configuration(file_name):
     :param file_name:
     :type file_name: str
     :return:
-    :rtype:
+    :rtype: list
     """
     root_folder = ''
     folder = ''
@@ -123,7 +120,6 @@ def read_configuration(file_name):
                     raise ValueError('folder not defined')
             else:
                 file_list.append(root_folder + folder + line.strip())
-
     return file_list
 
 
@@ -131,9 +127,9 @@ def build_expand_list(file_name_list):
     """
 
     :param file_name_list:
-    :type file_name_list:
+    :type file_name_list: list
     :return:
-    :rtype:
+    :rtype: list
     """
     output_list = []
     for file_name in file_name_list:
@@ -154,25 +150,52 @@ def print_list(input_list):
         print(element)
 
 
-def transform_hash_md5(input_file_list):
+def calculate_md5(file_name):
     """
 
-    :param input_file_list:
-    :type input_file_list: list
+    :param file_name:
+    :type file_name: str
     :return:
     :rtype:
     """
-    for element in input_file_list:
-        print(element)
-        hash_md5 = hashlib.md5()
-        with open(element, 'rb') as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                hash_md5.update(chunk)
-        print(hash_md5.hexdigest())
+    f = open(file_name)
+    buffer = f.read()
+    hash_result = hashlib.md5(buffer.encode())
+    f.close()
+    return hash_result.hexdigest()
+
+
+def dictionary_hash(files_list):
+    """
+
+    :param files_list:
+    :type files_list: list
+    :return:
+    :rtype: dict
+    """
+    hash_dict = {}
+    for file_name in files_list:
+        hash_result = calculate_md5(file_name)
+        hash_dict[str(file_name)] = hash_result
+    return hash_dict
+
+
+def write_file(dictionary):
+    """
+
+    :param dictionary:
+    :type dictionary: dict
+    :return:
+    :rtype:
+    """
+    with open('file.txt', 'w') as file:
+        file.write(json.dumps(dictionary))
 
 
 if __name__ == '__main__':
+    expanded_file_list = []
     file_list = []
+    dict_hash = {}
     try:
         file_list = read_configuration('gea.config')
     except FileNotFoundError as e:
@@ -182,8 +205,6 @@ if __name__ == '__main__':
         print(e)
         exit(0)
     expanded_file_list = build_expand_list(file_list)
-    # print_list(expanded_file_list)
-    transform_hash_md5(expanded_file_list)
-
-    # val = ['/home/brojas/common/gea/sysMon/CP/tcs.config']
-    # transform_hash_md5(val)
+    print_list(expanded_file_list)
+    dict_hash = dictionary_hash(expanded_file_list)
+    write_file(dict_hash)
