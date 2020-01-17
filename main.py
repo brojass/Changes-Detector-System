@@ -3,6 +3,7 @@ from pathlib import Path
 import hashlib
 import json
 import smtplib
+import ast
 from email.message import EmailMessage
 
 STATE_START = 0
@@ -12,6 +13,7 @@ STATE_FILES = 15
 PATTERN_HOST = r'\[\s*host'
 PATTERN_ROOT = r'\[\s*root_folder'
 PATTERN_FOLDER = r'\[\s*folder'
+HASH_FILE = 'file.txt'
 
 
 def expand(full_file_name):
@@ -190,8 +192,33 @@ def write_file(dictionary):
     :return:
     :rtype:
     """
-    with open('file.txt', 'w') as file:
+    with open('hash', 'w') as file:
         file.write(json.dumps(dictionary))
+
+
+def hash_file_exist(hash_dictionary):
+    """
+
+    :param hash_dictionary:
+    :type hash_dictionary: dict
+    :return:
+    :rtype:
+    """
+    with open(HASH_FILE,'r') as f:
+        s = f.read()
+    # f = open(HASH_FILE, 'r')
+    # if f.mode == 'r':
+    #     content = f.read()
+    #     f.close()
+    #     for line in content:
+    #         print(line)
+    #     if content == hash_dictionary:
+    #         print('Exist! :',end="")
+    #         print(hash_dictionary)
+    #     else:
+    #         print("don't match")
+    #         print(content)
+    #         print(hash_dictionary)
 
 
 def send_email(file):
@@ -230,5 +257,6 @@ if __name__ == '__main__':
     print_list(expanded_file_list)
     dict_hash = dictionary_hash(expanded_file_list)
     print(dict_hash)
+    hash_file_exist(dict_hash)
     # write_file(dict_hash)
-    # send_email('file.txt')
+    # send_email(HASH_FILE)
