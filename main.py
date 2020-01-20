@@ -4,6 +4,7 @@ import hashlib
 import json
 import smtplib
 import ast
+import os.path
 from email.message import EmailMessage
 
 STATE_START = 0
@@ -139,7 +140,7 @@ def build_expand_list(file_name_list):
     for file_name in file_name_list:
         for expanded_file_name in expand(file_name):
             output_list.append(str(expanded_file_name))
-    return sorted(output_list)
+    return output_list
 
 
 def print_list(input_list):
@@ -194,14 +195,25 @@ def compare_hash(file_string_content, dictionary):
     :return:
     :rtype:
     """
-    diffkeys = []
     dict2 = ast.literal_eval(file_string_content)
-    for k in dictionary:
-        if dictionary[k] != dict2[k]:
-            diffkeys = [k]
-    # diffkeys = [k for k in dictionary if dictionary[k] != dict2[k]]
-    for k in diffkeys:
-        print(k, ':', dictionary[k], '->', dict2[k])
+    for item in dict2:
+        if item in dictionary:
+            print('item: '+item)
+        else:
+            print('este archivo no se pudo encontrar en dictionary: '+item)
+
+    diffkeys = []
+    final_list = []
+    # for i in dict2:
+    #     print('this is i: '+i)
+    #     if dict2.get(i) != dictionary.get(i):
+    #         diffkeys.append([i])
+    #         print(diffkeys)
+    # diffkeys = [k for k in dict2 if dictionary.get(k) != dict2.get(k)]
+    # if not diffkeys:
+    #     print("There it's not are diferences")
+    # for item in diffkeys:
+    #     print(item, ':', dict2.get(item), '->', dictionary.get(item))
 
 
 def write_file(dictionary):
@@ -216,13 +228,15 @@ def write_file(dictionary):
         file.write(json.dumps(dictionary))
 
 
-def hash_file_exist():
+def hash_file_exist(file_hash):
     """
 
+    :param file_hash:
+    :type file_hash: str
     :return:
     :rtype: str
     """
-    with open(HASH_FILE, 'r') as f:
+    with open(file_hash, 'r') as f:
         string_content = f.read()
         return string_content
 
@@ -260,16 +274,17 @@ if __name__ == '__main__':
     except ValueError as e:
         print(e)
         exit(0)
-    expanded_file_list = build_expand_list(file_list)
+    try:
+        expanded_file_list = build_expand_list(file_list)
+    except ValueError as e:
+        print(e)
+        exit(0)
+
     print_list(expanded_file_list)
     dict_hash = dictionary_hash(expanded_file_list)
-    try:
-        str_content = hash_file_exist()
-    except FileNotFoundError as e:
-        print(e)
-        print('File created...')
+    if os.path.exists(HASH_FILE):
+        str_content = hash_file_exist(HASH_FILE)
+        compare_hash(str_content, dict_hash)
+        # send_email(HASH_FILE)
+    else:
         write_file(dict_hash)
-        exit(0)
-    print('File ' + HASH_FILE + ' already exists')
-    compare_hash(str_content, dict_hash)
-    # send_email(HASH_FILE)
