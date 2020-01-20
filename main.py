@@ -13,7 +13,7 @@ STATE_FILES = 15
 PATTERN_HOST = r'\[\s*host'
 PATTERN_ROOT = r'\[\s*root_folder'
 PATTERN_FOLDER = r'\[\s*folder'
-HASH_FILE = 'file.txt'
+HASH_FILE = 'hash'
 
 
 def expand(full_file_name):
@@ -138,7 +138,7 @@ def build_expand_list(file_name_list):
     output_list = []
     for file_name in file_name_list:
         for expanded_file_name in expand(file_name):
-            output_list.append(expanded_file_name)
+            output_list.append(str(expanded_file_name))
     return sorted(output_list)
 
 
@@ -180,45 +180,62 @@ def dictionary_hash(files_list):
     hash_dict = {}
     for file_name in files_list:
         hash_result = calculate_md5(file_name)
-        hash_dict[str(file_name)] = hash_result
+        hash_dict[file_name] = hash_result
     return hash_dict
 
 
-def write_file(dictionary):
+def compare_hash(file_string_content, dictionary):
     """
 
+    :param file_string_content:
+    :type file_string_content: str
     :param dictionary:
     :type dictionary: dict
     :return:
     :rtype:
     """
-    with open('hash', 'w') as file:
-        file.write(json.dumps(dictionary))
+    dict2 = ast.literal_eval(file_string_content)
+    diffkeys = [k for k in dictionary if dictionary[k] != dict2[k]]
+    for k in diffkeys:
+        print(k, ':', dictionary[k], '->', dict2[k])
 
 
-def hash_file_exist(hash_dictionary):
+def write_file(file_exist, file_content, dictionary):
     """
 
-    :param hash_dictionary:
-    :type hash_dictionary: dict
+    :param file_content:
+    :type file_content: str
+    :param file_exist:
+    :type file_exist: bool
+    :param dictionary:
+    :type dictionary: dict
     :return:
     :rtype:
     """
-    with open(HASH_FILE,'r') as f:
-        s = f.read()
-    # f = open(HASH_FILE, 'r')
-    # if f.mode == 'r':
-    #     content = f.read()
-    #     f.close()
-    #     for line in content:
-    #         print(line)
-    #     if content == hash_dictionary:
-    #         print('Exist! :',end="")
-    #         print(hash_dictionary)
-    #     else:
-    #         print("don't match")
-    #         print(content)
-    #         print(hash_dictionary)
+    if file_exist:
+        print('File ' + HASH_FILE + ' already exists')
+        compare_hash(file_content, dictionary)
+
+    else:
+        with open('hash', 'w') as file:
+            file.write(json.dumps(dictionary))
+
+
+def hash_file_exist(list_expanded):
+    """
+
+    :param list_expanded:
+    :type list_expanded: list
+    :return:
+    :rtype: bool
+    """
+    with open(HASH_FILE, 'r') as f:
+        string_content = f.read()
+        if list_expanded[0] in string_content:
+            return True, string_content
+        else:
+            string_content = ''
+            return False, string_content
 
 
 def send_email(file):
@@ -242,9 +259,11 @@ def send_email(file):
 
 
 if __name__ == '__main__':
-    expanded_file_list = []
     file_list = []
+    expanded_file_list = []
     dict_hash = {}
+    file_existence = False
+    str_content = ''
     try:
         file_list = read_configuration('gea.config')
     except FileNotFoundError as e:
@@ -256,7 +275,10 @@ if __name__ == '__main__':
     expanded_file_list = build_expand_list(file_list)
     print_list(expanded_file_list)
     dict_hash = dictionary_hash(expanded_file_list)
-    print(dict_hash)
-    hash_file_exist(dict_hash)
-    # write_file(dict_hash)
+    try:
+        file_existence, str_content = hash_file_exist(expanded_file_list)
+    except FileNotFoundError as e:
+        print(e)
+        exit(0)
+    write_file(file_existence, str_content, dict_hash)
     # send_email(HASH_FILE)
