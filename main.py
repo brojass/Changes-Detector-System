@@ -194,48 +194,37 @@ def compare_hash(file_string_content, dictionary):
     :return:
     :rtype:
     """
+    diffkeys = []
     dict2 = ast.literal_eval(file_string_content)
-    diffkeys = [k for k in dictionary if dictionary[k] != dict2[k]]
+    for k in dictionary:
+        if dictionary[k] != dict2[k]:
+            diffkeys = [k]
+    # diffkeys = [k for k in dictionary if dictionary[k] != dict2[k]]
     for k in diffkeys:
         print(k, ':', dictionary[k], '->', dict2[k])
 
 
-def write_file(file_exist, file_content, dictionary):
+def write_file(dictionary):
     """
 
-    :param file_content:
-    :type file_content: str
-    :param file_exist:
-    :type file_exist: bool
     :param dictionary:
     :type dictionary: dict
     :return:
     :rtype:
     """
-    if file_exist:
-        print('File ' + HASH_FILE + ' already exists')
-        compare_hash(file_content, dictionary)
-
-    else:
-        with open('hash', 'w') as file:
-            file.write(json.dumps(dictionary))
+    with open('hash', 'w') as file:
+        file.write(json.dumps(dictionary))
 
 
-def hash_file_exist(list_expanded):
+def hash_file_exist():
     """
 
-    :param list_expanded:
-    :type list_expanded: list
     :return:
-    :rtype: bool
+    :rtype: str
     """
     with open(HASH_FILE, 'r') as f:
         string_content = f.read()
-        if list_expanded[0] in string_content:
-            return True, string_content
-        else:
-            string_content = ''
-            return False, string_content
+        return string_content
 
 
 def send_email(file):
@@ -262,7 +251,6 @@ if __name__ == '__main__':
     file_list = []
     expanded_file_list = []
     dict_hash = {}
-    file_existence = False
     str_content = ''
     try:
         file_list = read_configuration('gea.config')
@@ -276,9 +264,12 @@ if __name__ == '__main__':
     print_list(expanded_file_list)
     dict_hash = dictionary_hash(expanded_file_list)
     try:
-        file_existence, str_content = hash_file_exist(expanded_file_list)
+        str_content = hash_file_exist()
     except FileNotFoundError as e:
         print(e)
+        print('File created...')
+        write_file(dict_hash)
         exit(0)
-    write_file(file_existence, str_content, dict_hash)
+    print('File ' + HASH_FILE + ' already exists')
+    compare_hash(str_content, dict_hash)
     # send_email(HASH_FILE)
