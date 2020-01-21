@@ -14,22 +14,8 @@ STATE_FILES = 15
 PATTERN_HOST = r'\[\s*host'
 PATTERN_ROOT = r'\[\s*root_folder'
 PATTERN_FOLDER = r'\[\s*folder'
+FILE_CONF = 'gea.config'
 HASH_FILE = 'hash'
-
-
-def expand(full_file_name):
-    """
-
-    :param full_file_name:
-    :type full_file_name: str
-    :return:
-    :rtype: list
-    """
-    val = full_file_name.rfind('/')
-    path = full_file_name[0:val]
-    pattern = full_file_name[val + 1:]
-    posix_path = Path(path).glob(pattern)
-    return posix_path
 
 
 def append_delimiter(directory):
@@ -128,6 +114,21 @@ def read_configuration(file_name):
     return file_list
 
 
+def expand(full_file_name):
+    """
+
+    :param full_file_name:
+    :type full_file_name: str
+    :return:
+    :rtype: list
+    """
+    val = full_file_name.rfind('/')
+    path = full_file_name[0:val]
+    pattern = full_file_name[val + 1:]
+    posix_path = Path(path).glob(pattern)
+    return posix_path
+
+
 def build_expand_list(file_name_list):
     """
 
@@ -161,7 +162,7 @@ def calculate_md5(file_name):
     :param file_name:
     :type file_name: str
     :return:
-    :rtype:
+    :rtype: str
     """
     f = open(file_name)
     buffer = f.read()
@@ -185,35 +186,101 @@ def dictionary_hash(files_list):
     return hash_dict
 
 
-def compare_hash(file_string_content, dictionary):
+def hash_file_exist(file_hash):
     """
 
-    :param file_string_content:
-    :type file_string_content: str
-    :param dictionary:
-    :type dictionary: dict
+    :param file_hash:
+    :type file_hash: str
+    :return:
+    :rtype: str
+    """
+    with open(file_hash, 'r') as f:
+        string_content = f.read()
+        return string_content
+
+
+def compare_hash(reference_file_string_content, configuration_dictionary):
+    """
+
+    :param reference_file_string_content:
+    :type reference_file_string_content: str
+    :param configuration_dictionary:
+    :type configuration_dictionary: dict
+    :return:
+    :rtype: tuple
+    """
+    removed_list = []
+    new_list = []
+    diff_list = []
+    reference_dictionary = ast.literal_eval(reference_file_string_content)
+
+    for key in reference_dictionary:
+        if key in configuration_dictionary:
+            if configuration_dictionary[key] != reference_dictionary[key]:
+                print('File modified: ' + key)
+                diff_list.append(key)
+        else:
+            print('File removed: ' + key)
+            removed_list.append(key)
+
+    added_list = [x for x in configuration_dictionary if x not in reference_dictionary]
+    for file_added in added_list:
+        print('File added: ' + file_added)
+        new_list.append(file_added)
+    return diff_list, removed_list, new_list
+
+
+def send_email(mod_files, rm_files, add_files):
+    """
+
+    :param add_files:
+    :type add_files: list
+    :param mod_files:
+    :type mod_files: list
+    :param rm_files:
+    :type rm_files: list
     :return:
     :rtype:
     """
-    dict2 = ast.literal_eval(file_string_content)
-    for item in dict2:
-        if item in dictionary:
-            print('item: '+item)
-        else:
-            print('este archivo no se pudo encontrar en dictionary: '+item)
+    aux = ''
+    aux_rm = ''
+    aux_mod = ''
+    aux_add = ""
+    msg = EmailMessage()
+    msg['Subject'] = f'Changes detected in {FILE_CONF}'
+    msg['From'] = 'brojas@gemini.edu'
+    msg['To'] = 'brojas@gemini.edu'
 
-    diffkeys = []
-    final_list = []
-    # for i in dict2:
-    #     print('this is i: '+i)
-    #     if dict2.get(i) != dictionary.get(i):
-    #         diffkeys.append([i])
-    #         print(diffkeys)
-    # diffkeys = [k for k in dict2 if dictionary.get(k) != dict2.get(k)]
-    # if not diffkeys:
-    #     print("There it's not are diferences")
-    # for item in diffkeys:
-    #     print(item, ':', dict2.get(item), '->', dictionary.get(item))
+    if rm_files:
+        for rm in rm_files:
+            aux_rm = aux_rm + rm + '\n'
+        aux_rm = 'Files that were deleted: \n'+aux_rm
+    if mod_files:
+        for md in mod_files:
+            aux_mod = aux_mod + md + '\n'
+        aux_mod = 'Files that were modified: \n'+aux_mod
+    if add_files:
+        for ad in add_files:
+            aux_add = aux_add + ad + '\n'
+        aux_add = 'Files that were added: \n'+aux_add
+    msg.set_content(aux + aux_mod + aux_rm + aux_add)
+    s = smtplib.SMTP('localhost')
+    s.send_message(msg)
+    s.quit()
+
+    # with open(FILE_CONF) as fp:
+    #     msg = EmailMessage()
+    #     msg.set_content(fp.read())
+    # message_email = """\
+    # Subject: Hi there
+    #
+    # This message is sent from Python."""
+    # from_email = 'brojas@gemini.edu'
+    # to_email = 'brojas@gemini.edu'
+    #
+    # s = smtplib.SMTP('localhost')
+    # s.sendmail(from_email,to_email,message_email)
+    # s.quit()
 
 
 def write_file(dictionary):
@@ -228,46 +295,16 @@ def write_file(dictionary):
         file.write(json.dumps(dictionary))
 
 
-def hash_file_exist(file_hash):
-    """
-
-    :param file_hash:
-    :type file_hash: str
-    :return:
-    :rtype: str
-    """
-    with open(file_hash, 'r') as f:
-        string_content = f.read()
-        return string_content
-
-
-def send_email(file):
-    """
-
-    :param file:
-    :type file:
-    :return:
-    :rtype:
-    """
-    with open(file) as fp:
-        msg = EmailMessage()
-        msg.set_content(fp.read())
-    msg['Subject'] = f'Changes detected in {file}'
-    msg['From'] = 'brojas@gemini.edu'
-    msg['To'] = 'brojas@gemini.edu'
-
-    s = smtplib.SMTP('localhost')
-    s.send_message(msg)
-    s.quit()
-
-
 if __name__ == '__main__':
     file_list = []
     expanded_file_list = []
     dict_hash = {}
-    str_content = ''
+    reference_content = ''
+    added_files = []
+    removed_files = []
+    modified_files = []
     try:
-        file_list = read_configuration('gea.config')
+        file_list = read_configuration(FILE_CONF)
     except FileNotFoundError as e:
         print(e)
         exit(0)
@@ -279,12 +316,12 @@ if __name__ == '__main__':
     except ValueError as e:
         print(e)
         exit(0)
-
-    print_list(expanded_file_list)
+    # print_list(expanded_file_list)
     dict_hash = dictionary_hash(expanded_file_list)
     if os.path.exists(HASH_FILE):
-        str_content = hash_file_exist(HASH_FILE)
-        compare_hash(str_content, dict_hash)
-        # send_email(HASH_FILE)
-    else:
-        write_file(dict_hash)
+        reference_content = hash_file_exist(HASH_FILE)
+        modified_files, removed_files, added_files = compare_hash(reference_content, dict_hash)
+        if modified_files or removed_files or added_files:
+            print('correo enviado')
+            send_email(modified_files, removed_files, added_files)
+    # write_file(dict_hash)
