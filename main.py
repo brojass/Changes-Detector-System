@@ -254,33 +254,19 @@ def send_email(mod_files, rm_files, add_files):
     if rm_files:
         for rm in rm_files:
             aux_rm = aux_rm + rm + '\n'
-        aux_rm = 'Files that were deleted: \n'+aux_rm
+        aux_rm = 'Files that were deleted: \n' + aux_rm
     if mod_files:
         for md in mod_files:
             aux_mod = aux_mod + md + '\n'
-        aux_mod = 'Files that were modified: \n'+aux_mod
+        aux_mod = 'Files that were modified: \n' + aux_mod
     if add_files:
         for ad in add_files:
             aux_add = aux_add + ad + '\n'
-        aux_add = 'Files that were added: \n'+aux_add
+        aux_add = 'Files that were added: \n' + aux_add
     msg.set_content(aux + aux_mod + aux_rm + aux_add)
     s = smtplib.SMTP('localhost')
     s.send_message(msg)
     s.quit()
-
-    # with open(FILE_CONF) as fp:
-    #     msg = EmailMessage()
-    #     msg.set_content(fp.read())
-    # message_email = """\
-    # Subject: Hi there
-    #
-    # This message is sent from Python."""
-    # from_email = 'brojas@gemini.edu'
-    # to_email = 'brojas@gemini.edu'
-    #
-    # s = smtplib.SMTP('localhost')
-    # s.sendmail(from_email,to_email,message_email)
-    # s.quit()
 
 
 def write_file(dictionary):
@@ -322,6 +308,6 @@ if __name__ == '__main__':
         reference_content = hash_file_exist(HASH_FILE)
         modified_files, removed_files, added_files = compare_hash(reference_content, dict_hash)
         if modified_files or removed_files or added_files:
-            print('correo enviado')
+            print('Email send')
             send_email(modified_files, removed_files, added_files)
     # write_file(dict_hash)
