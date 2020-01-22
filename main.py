@@ -126,6 +126,13 @@ def expand(full_file_name):
     path = full_file_name[0:val]
     pattern = full_file_name[val + 1:]
     posix_path = Path(path).glob(pattern)
+
+    path_comparator = Path(full_file_name)
+    if path_comparator.exists() and re.search(''):
+        print('Exist ', pattern)
+    else:
+        print('Not exists ', pattern)
+
     return posix_path
 
 
@@ -242,7 +249,6 @@ def send_email(mod_files, rm_files, add_files):
     :return:
     :rtype:
     """
-    aux = ''
     aux_rm = ''
     aux_mod = ''
     aux_add = ""
@@ -263,7 +269,7 @@ def send_email(mod_files, rm_files, add_files):
         for ad in add_files:
             aux_add = aux_add + ad + '\n'
         aux_add = 'Files that were added: \n' + aux_add
-    msg.set_content(aux + aux_mod + aux_rm + aux_add)
+    msg.set_content(aux_mod + aux_rm + aux_add)
     s = smtplib.SMTP('localhost')
     s.send_message(msg)
     s.quit()
@@ -299,6 +305,7 @@ if __name__ == '__main__':
         exit(0)
     try:
         expanded_file_list = build_expand_list(file_list)
+        print(expanded_file_list)
     except ValueError as e:
         print(e)
         exit(0)
@@ -309,5 +316,5 @@ if __name__ == '__main__':
         modified_files, removed_files, added_files = compare_hash(reference_content, dict_hash)
         if modified_files or removed_files or added_files:
             print('Email send')
-            send_email(modified_files, removed_files, added_files)
+            # send_email(modified_files, removed_files, added_files)
     # write_file(dict_hash)
