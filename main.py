@@ -128,7 +128,7 @@ def expand(full_file_name):
     posix_path = Path(path).glob(pattern)
 
     path_comparator = Path(full_file_name)
-    if path_comparator.exists() and re.search(''):
+    if path_comparator.exists():
         print('Exist ', pattern)
     else:
         print('Not exists ', pattern)
