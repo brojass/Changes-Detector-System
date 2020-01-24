@@ -14,9 +14,9 @@ STATE_FILES = 15
 PATTERN_HOST = r'\[\s*host'
 PATTERN_ROOT = r'\[\s*root_folder'
 PATTERN_FOLDER = r'\[\s*folder'
-FILE_CONF = 'gea.config'
-FILE_CONF_LIST = ['gea.config']
+FILE_CONF_LIST = ['gea.config', 'rtconfig.config']
 REFERENCE_FILE = 'hash'
+EMAILS_TO_SEND = ['brojas@gemini.edu']
 
 
 def append_delimiter(directory):
@@ -48,20 +48,24 @@ def return_key(line):
         output_string = aux[1]
         return output_string
     else:
-        raise ValueError('Error, key not found inside [] in ' + FILE_CONF)
+        raise ValueError('Error, key not found inside []')
 
 
 def read_configuration_list(conf_list):
     """
-
-    :param conf_list:
+    This function iterates over a list who has the configuration files for later appended
+    into only one file list.
+    :param conf_list: The configurations files list.
     :type conf_list: list
-    :return:
-    :rtype:
+    :return: A list with files found inside the configurations files.
+    :rtype:list
     """
+    final_list = []
     for config in conf_list:
+        final_list.append(config)
         for config_files_list in read_configuration(config):
-            print(config_files_list)
+            final_list.append(config_files_list)
+    return final_list
 
 
 def read_configuration(file_name):
@@ -71,9 +75,10 @@ def read_configuration(file_name):
     have all files found inside the configuration file.
     :param file_name: The name of the path file who has the configuration.
     :type file_name: str
-    :return: A list with files found inside the configuration file, but not the total of them.
+    :return: A list with files found inside the configuration file.
     :rtype: list
     """
+    file_found_list = []
     root_folder = ''
     folder = ''
     f = open(file_name, 'r')
@@ -122,9 +127,9 @@ def read_configuration(file_name):
                 else:
                     raise ValueError('folder not defined')
             else:
-                file_list.append(root_folder + folder + line.strip())
+                file_found_list.append(root_folder + folder + line.strip())
     f.close()
-    return file_list
+    return file_found_list
 
 
 def expand(full_file_name):
@@ -257,10 +262,7 @@ def send_email(mod_files, rm_files, add_files):
     aux_rm = ''
     aux_mod = ''
     aux_add = ""
-    msg = EmailMessage()
-    msg['Subject'] = f'Changes detected in {FILE_CONF}'
-    msg['From'] = 'brojas@gemini.edu'
-    msg['To'] = 'brojas@gemini.edu'
+    email_to_send_list = EMAILS_TO_SEND
 
     if rm_files:
         for rm in rm_files:
@@ -275,10 +277,16 @@ def send_email(mod_files, rm_files, add_files):
             aux_add = aux_add + ad + '\n'
         aux_add = 'Files that were added: \n' + aux_add
 
-    msg.set_content(aux_mod + aux_rm + aux_add)
-    s = smtplib.SMTP('localhost')
-    s.send_message(msg)
-    s.quit()
+    for email in email_to_send_list:
+        print('Email send to ' + email)
+        msg = EmailMessage()
+        msg['Subject'] = f'Changes detected in configurations files'
+        msg['From'] = 'brojas@gemini.edu'
+        msg['To'] = email
+        msg.set_content(aux_mod + aux_rm + aux_add)
+        s = smtplib.SMTP('localhost')
+        s.send_message(msg)
+        s.quit()
 
 
 def write_file(dictionary):
@@ -300,7 +308,7 @@ if __name__ == '__main__':
     removed_files = []
     modified_files = []
     try:
-        file_list = read_configuration(FILE_CONF)
+        file_list = read_configuration_list(FILE_CONF_LIST)
     except FileNotFoundError as e:
         print(e)
         exit(0)
@@ -312,12 +320,11 @@ if __name__ == '__main__':
     except ValueError as e:
         print(e)
         exit(0)
-    # print_list(expanded_file_list)
+    print_list(file_list)
     dict_hash = dictionary_hash(expanded_file_list)
     if os.path.exists(REFERENCE_FILE):
         reference_content = hash_file_exist(REFERENCE_FILE)
         modified_files, removed_files, added_files = compare_hash(reference_content, dict_hash)
         if modified_files or removed_files or added_files:
-            print('Email send')
-            # send_email(modified_files, removed_files, added_files)
-    # write_file(dict_hash)
+            send_email(modified_files, removed_files, added_files)
+    write_file(dict_hash)
