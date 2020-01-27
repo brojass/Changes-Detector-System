@@ -359,7 +359,7 @@ if __name__ == '__main__':
         print(e)
         exit(0)
 
-    print_list(file_list)
+    print_list(expanded_file_list)
 
     # Calculate the hashes for all files specified in the configuration files
     file_hashes = calculate_hashes(expanded_file_list)
