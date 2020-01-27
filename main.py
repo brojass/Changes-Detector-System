@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+import sys
 import re
 from pathlib import Path
 import hashlib
@@ -6,23 +8,29 @@ import smtplib
 import ast
 import os.path
 from email.message import EmailMessage
+from argparse import Namespace, ArgumentParser
 
-STATE_START = 0
-STATE_ROOT = 5
-STATE_FOLDER = 10
-STATE_FILES = 15
 PATTERN_HOST = r'\[\s*host'
 PATTERN_ROOT = r'\[\s*root_folder'
 PATTERN_FOLDER = r'\[\s*folder'
-FILE_CONF_LIST = ['gea.config', 'rtconfig.config']
+PATTERN_EMAIL = r'\[\s*email'
+
+# FILE_CONF_LIST = ['gea.config', 'rtconfig.config']
 REFERENCE_FILE = 'hash'
 EMAILS_TO_SEND = ['brojas@gemini.edu']
 
 
+class ConfigurationError(Exception):
+    """
+    Raised when a syntax error is found in a configuration file.
+    """
+    pass
+
+
 def append_delimiter(directory):
     """
-    This function is responsible to skip specials characters '.' and './' from the path.
-    Otherwise add '/' to the path.
+    Add '/' to the end of the directory name if it's not already there.
+    Return an empty string when the directory is '.' or './'
     :param directory: The name or direction path from the pattern
     :type directory: str
     :return: The path with '/' at the final of each one
@@ -35,9 +43,11 @@ def append_delimiter(directory):
         return directory
 
 
-def return_key(line):
+def return_value(line):
     """
-    Function that separate the name or direction path (xxx) from the pattern ([host/root_folder/folder=xxx])
+    Separate a line of the form '[key=value]' into 'key' and 'value'.
+    Raise an exception if the line cannot be split into key and value.
+    The key may be 'host', 'root_folder' or 'folder', but this function does not check for it.
     :param line: Line of text that contain '[host/root_folder/folder=xxx]' format.
     :type line: str
     :return: The name or direction path from the pattern
@@ -48,10 +58,10 @@ def return_key(line):
         output_string = aux[1]
         return output_string
     else:
-        raise ValueError('Error, key not found inside []')
+        return ''
 
 
-def read_configuration_list(conf_list):
+def read_configuration_file_list(conf_list):
     """
     This function iterates over a list who has the configuration files for later appended
     into only one file list.
@@ -77,59 +87,59 @@ def read_configuration(file_name):
     :type file_name: str
     :return: A list with files found inside the configuration file.
     :rtype: list
+    :raises: ConfigurationError
     """
-    file_found_list = []
+    host_name = ''
     root_folder = ''
     folder = ''
+    found_file_list = []
+    folder_defined = False
+
     f = open(file_name, 'r')
-    state = STATE_START
+
     for line in f:
+
+        # Skip blank lines and comments
         line = line.strip()
         if not line:
             continue
         if re.search(r'^#', line):
             continue
 
-        if state == STATE_START:
-            if re.search(PATTERN_HOST, line):
-                host = return_key(line)
-                if host:
-                    state = STATE_ROOT
+        if re.search(PATTERN_HOST, line):  # [host=host_name]
+            value = return_value(line)
+            if value:
+                if not host_name:
+                    host_name = value
                 else:
-                    raise ValueError('host definition not found')
-
-        elif state == STATE_ROOT:
-            if re.search(PATTERN_ROOT, line):
-                root_folder = return_key(line)
-                if root_folder:
-                    root_folder = append_delimiter(root_folder)
-                    state = STATE_FOLDER
-                else:
-                    raise ValueError('root folder definition not found')
-
-        elif state == STATE_FOLDER:
-            if re.search(PATTERN_FOLDER, line):
-                folder = return_key(line)
-                if folder:
-                    folder = append_delimiter(folder)
-                    state = STATE_FILES
-                else:
-                    raise ValueError('folder not defined')
-
-        elif state == STATE_FILES:
-            if re.search(PATTERN_HOST, line) or re.search(PATTERN_ROOT, line):
-                raise ValueError('duplicate host or root folder definition')
-            if re.search(PATTERN_FOLDER, line):
-                folder = return_key(line)
-                if folder:
-                    folder = append_delimiter(folder)
-                    state = STATE_FILES
-                else:
-                    raise ValueError('folder not defined')
+                    raise ConfigurationError('duplicate host definition')
             else:
-                file_found_list.append(root_folder + folder + line.strip())
+                raise ConfigurationError('host name missing')
+
+        elif re.search(PATTERN_ROOT, line):  # [root_folder=directory]
+            root_folder = return_value(line)
+            if root_folder:
+                root_folder = append_delimiter(root_folder)
+            else:
+                raise ConfigurationError('root folder missing')
+
+        elif re.search(PATTERN_FOLDER, line):  # [folder=directory]
+            folder = return_value(line)
+            if folder:
+                folder = append_delimiter(folder)
+                folder_defined = True
+            else:
+                raise ConfigurationError('folder missing')
+
+        else:  # file name
+            new_file_name = line
+            if root_folder and folder_defined:
+                found_file_list.append(root_folder + folder + new_file_name)
+            else:
+                raise ConfigurationError('root_folder or folder not defined for ' + new_file_name)
+
     f.close()
-    return file_found_list
+    return found_file_list
 
 
 def expand(full_file_name):
@@ -188,7 +198,7 @@ def calculate_md5(file_name):
     return hash_result.hexdigest()
 
 
-def dictionary_hash(files_list):
+def calculate_hashes(files_list):
     """
     Function that iterates over list with the total files, for later calculate md5 of each file
     to assign them into a dictionary.
@@ -204,7 +214,7 @@ def dictionary_hash(files_list):
     return hash_dict
 
 
-def hash_file_exist(file_hash):
+def read_reference_file(file_hash):
     """
     Function that read the content of REFERENCE_FILE.
     :param file_hash: name or direction of REFERENCE_FILE.
@@ -217,7 +227,7 @@ def hash_file_exist(file_hash):
         return string_content
 
 
-def compare_hash(reference_file_string_content, configuration_dictionary):
+def compare_hashes(reference_file_string_content, configuration_dictionary):
     """
     This function compare the files between REFERENCE_FILE and configuration file. With the purpose
     of known which files was modified, removed or added.
@@ -289,7 +299,7 @@ def send_email(mod_files, rm_files, add_files):
         s.quit()
 
 
-def write_file(dictionary):
+def write_reference_file(dictionary):
     """
     Function that write or overwrite the REFERENCE_FILE
     :param dictionary: dictionary with md5 hash like value and files as key.
@@ -299,32 +309,68 @@ def write_file(dictionary):
         file.write(json.dumps(dictionary))
 
 
+def get_arguments(argv):
+    """
+    Process command line arguments
+    :param argv: command line arguments from sys.argv
+    :type argv: list
+    :return: command line arguments
+    :rtype: Namespace
+    """
+    parser = ArgumentParser()
+
+    parser.add_argument(action='store',
+                        nargs='+',
+                        dest='file_list',
+                        default=[],
+                        help='list of configuration files')
+
+    return parser.parse_args(argv[1:])
+
+
 if __name__ == '__main__':
+
+    # Get file list from the command line. Terminate if no files are specified.
+    # args = get_arguments(['program', 'rtconfig.config', 'gea.config'])  # test
+    # args = get_arguments(['program', '-h'])  # test
+    args = get_arguments(sys.argv)
+    if not args.file_list:
+        print('no configuration files specified')
+        exit(0)
+
+    # Read configuration file(s)
     file_list = []
-    expanded_file_list = []
-    dict_hash = {}
-    reference_content = ''
-    added_files = []
-    removed_files = []
-    modified_files = []
     try:
-        file_list = read_configuration_list(FILE_CONF_LIST)
+        file_list = read_configuration_file_list(args.file_list)
     except FileNotFoundError as e:
         print(e)
         exit(0)
-    except ValueError as e:
+    except ConfigurationError as e:
         print(e)
         exit(0)
+
+    # Expand any wildcards used in the configuration files
+    # The expanded file list is normally longer than the file
+    # list read from the configuration file
+    expanded_file_list = []
     try:
         expanded_file_list = build_expanded_list(file_list)
-    except ValueError as e:
+    except ConfigurationError as e:
         print(e)
         exit(0)
+
     print_list(file_list)
-    dict_hash = dictionary_hash(expanded_file_list)
+
+    # Calculate the hashes for all files specified in the configuration files
+    file_hashes = calculate_hashes(expanded_file_list)
+
+    # Compare the file hashes against the hashes in the reference file.
+    # Send an email when new, removed, or modified files are detected.
     if os.path.exists(REFERENCE_FILE):
-        reference_content = hash_file_exist(REFERENCE_FILE)
-        modified_files, removed_files, added_files = compare_hash(reference_content, dict_hash)
+        reference_hashes = read_reference_file(REFERENCE_FILE)
+        modified_files, removed_files, added_files = compare_hashes(reference_hashes, file_hashes)
         if modified_files or removed_files or added_files:
             send_email(modified_files, removed_files, added_files)
-    write_file(dict_hash)
+
+    # Update the reference file
+    write_reference_file(file_hashes)
