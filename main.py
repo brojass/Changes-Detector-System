@@ -131,8 +131,8 @@ def read_configuration(file_name):
             else:
                 raise ConfigurationError('folder missing')
 
-        else:  # file name
-            new_file_name = line
+        else:
+            new_file_name = line    # file name
             if root_folder and folder_defined:
                 found_file_list.append(root_folder + folder + new_file_name)
             else:
